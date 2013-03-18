@@ -151,7 +151,7 @@ module Http
             line = lines[i]
             if ismatch(r":", line) # Header data
                 field = split(line,":")
-                headers[field[1]] = join(field[2:length(field)],':')
+                headers[strip(field[1])] = strip(join(field[2:length(field)],':'))
             else # Remaining lines are data
                 data = join(lines[i:length(lines)],'\n')
                 break
