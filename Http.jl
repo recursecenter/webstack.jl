@@ -91,9 +91,8 @@ module Http
     immutable Client
         id::Int
         sock::TcpSocket
-        attr::Dict
 
-        Client(id::Int,sock::TcpSocket) = new(id,sock,{ "keepAlive" => false })
+        Client(id::Int,sock::TcpSocket) = new(id, sock)
     end
 
     # Request / Response
@@ -166,9 +165,6 @@ module Http
             end
             event( "write", server, client, response )
             write( client.sock, render(response) )               # Send the response
-            if client.attr["keepAlive"]
-                return true
-            end
             event( "close", server, client )
             close( client.sock )                                 # Close this connection
             false                                                # Return false to prevent an error at stream.jl:190
