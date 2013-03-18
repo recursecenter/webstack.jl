@@ -3,9 +3,6 @@ module Http
     using RequestParser
     export Server, HttpHandler, WebsocketHandler, Request, Response, run
 
-    # Status_Code => Default Message 
-    # From node.js/http.js
-
     STATUS_CODES = {
       100 => "Continue",
       101 => "Switching Protocols",
@@ -43,7 +40,7 @@ module Http
       415 => "Unsupported Media Type",
       416 => "Requested Range Not Satisfiable",
       417 => "Expectation Failed",
-      418 => "I\'m a teapot",                       # RFC 2324
+      418 => "I'm a teapot",                        # RFC 2324
       422 => "Unprocessable Entity",                # RFC 4918
       423 => "Locked",                              # RFC 4918
       424 => "Failed Dependency",                   # RFC 4918
@@ -85,9 +82,10 @@ module Http
         http::HttpHandler
         websock::Union(Nothing,WebsocketHandler)
     end
+
     Server(http::HttpHandler)                        = Server( http, nothing )
     Server(handler::Function)                        = Server( HttpHandler(handler) )
-    Server(websock::WebsocketHandler)                = Server( HttpHandler( generate404 ), websock )
+    Server(websock::WebsocketHandler)                = Server( HttpHandler( req -> Response(404) ), websock )
     Server(handler::Function, sockhandler::Function) = Server( HttpHandler(handler), WebsocketHandler(sockhandler) )
 
     immutable Client
@@ -124,35 +122,13 @@ module Http
 
     is_websocket_handshake( req ) = get( req.headers, "Upgrade", false ) == "websock"
 
-    generate404 = ( req ) -> Response(404)
-
-    event( event::String, server::Server, args... ) = 
+    event( event::String, server::Server, args... ) =
         has( server.http.events, event ) ? server.http.events[event]( args... ) : false
 
     # Meat / Potatoes
 
     function parse_request( client::Client )
-
         RequestParser.parse_http_request( takebuf_string( client.sock.buffer ) )
-
-        # raw_req = takebuf_string( client.sock.buffer )            # Read raw request 
-        # lines   = split( raw_req, '\n' )                          # Get request lines
-        # headers = Headers()                                       # Init Headers
-        # data    = ""                                              # Init Data
-        # # Build headers
-        # headers["method"], headers["url"], headers["protocol"] = split(lines[1])
-        # for i in 2:length(lines)
-        #     line = lines[i]
-        #     if ismatch(r":", line) # Header data
-        #         field = split(line,":")
-        #         headers[strip(field[1])] = strip(join(field[2:length(field)],':'))
-        #     else # Remaining lines are data
-        #         data = join(lines[i:length(lines)],'\n')
-        #         break
-        #     end
-        # end
-        # # Return Request        
-        # Request(headers["method"], headers["url"], headers, data, raw_req, client, Dict())
     end
 
     function render( response::Response )
@@ -171,7 +147,7 @@ module Http
         client.sock.readcb = function ( args... )                # When reading from the buffer
             req = parse_request( client )                         # Get the data
             println(req)
-            event( "read", server, client, req ) 
+            event( "read", server, client, req )
             if websockets_enabled && is_websocket_handshake( req )
                 server.websock.handle( client )                  # Defer to websockets
                 return true                                      # Keep-alive
@@ -182,7 +158,7 @@ module Http
                 if !isa(response, Response)                      # Promote return to Response
                     response = Response(response)
                 end
-            # TODO: This is going to be hard to debug -- can we get the stack trace here?            
+            # TODO: This is going to be hard to debug -- can we get the stack trace here?
             catch err
                 rethrow(err)
                 event( "error", server, client, err )            # Something went wrong
@@ -201,7 +177,7 @@ module Http
     end
 
     # Listen on $port, accept client connections
-    
+
     function run( server::Server, port::Integer )
         idPool = 0                                               # Increments for each connection
         sock = server.http.sock
@@ -210,7 +186,7 @@ module Http
         listen( sock )
         event( "listen", server, port )
         while true # handle requests, Base.wait_accept blocks until a connection is made
-            client = Client( idPool += 1, Base.wait_accept( sock ) )        
+            client = Client( idPool += 1, Base.wait_accept( sock ) )
             process_client( server, client, websockets_enabled )
         end
     end
