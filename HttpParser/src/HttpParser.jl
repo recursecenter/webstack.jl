@@ -1,6 +1,6 @@
 module HttpParser
 
-export Request, Parser, ParserSettings, http_parser_init, print, http_parser_execute, http_method_str, http_should_keep_alive
+export Parser, ParserSettings, http_parser_init, print, http_parser_execute, http_method_str, http_should_keep_alive
 
 const lib = "libhttp_parser"
 
