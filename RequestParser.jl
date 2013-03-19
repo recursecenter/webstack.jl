@@ -67,8 +67,6 @@ module RequestParser
     function on_headers_complete(parser)
         p = unsafe_ref(parser)
         # get first two bits of p.type_and_flags
-        println("Type and flags: ", p.type_and_flags)
-        println("Errno and upgrade: ", p.errno_and_upgrade)
         ptype = p.type_and_flags & 0x03
         if ptype == 0
             r.method = http_method_str(convert(Int, p.method))
