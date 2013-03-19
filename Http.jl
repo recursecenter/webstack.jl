@@ -184,14 +184,14 @@ end
 # Listen on $port, accept client connections
 
 function run( server::Server, port::Integer )
-    idPool = 0                                               # Increments for each connection
+    id_pool = 0                                               # Increments for each connection
     sock = server.http.sock
     websockets_enabled = server.websock != nothing
     uv_error("listen", !bind(sock, Base.IPv4(uint32(0)), uint16(port)) )
     listen( sock )
     event( "listen", server, port )
     while true # handle requests, Base.wait_accept blocks until a connection is made
-        client = Client( idPool += 1, Base.wait_accept(sock) )
+        client = Client( id_pool += 1, Base.wait_accept(sock) )
         client.parser = RequestParser.ClientParser( message_handler(server, client, websockets_enabled) )
         process_client( server, client, websockets_enabled )
     end
