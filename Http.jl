@@ -1,7 +1,5 @@
 module Http
 
-import Base:close
-
 using RequestParser
 export Server, HttpHandler, WebsocketHandler, Request, Response, run
 
@@ -146,15 +144,10 @@ function process_client( server::Server, client::Client, websockets_enabled::Boo
         add_data(client.parser, takebuf_string(client.sock.buffer))
         true
     end
+    client.sock.closecb = function (args...)
+        clean!(client.parser)
+    end
     start_reading( client.sock )  # Start buffering request data ( when available )
-end
-
-# TODO: We're not closing hung connections.
-# We need to detect this somehow.
-#
-function close(client::Client)
-    close(client.sock)
-    clean!(client.parser)
 end
 
 function message_handler(server::Server, client::Client, websockets_enabled::Bool)
@@ -177,7 +170,7 @@ function message_handler(server::Server, client::Client, websockets_enabled::Boo
         event( "write", server, client, response )
         write( client.sock, render(response) )               # Send the response
         event( "close", server, client )
-        close( client )                                      # Close this connection
+        close( client.sock )                                      # Close this connection
     end
 end
 
