@@ -1,5 +1,7 @@
 module Http
 
+import Base:close
+
 using RequestParser
 export Server, HttpHandler, WebsocketHandler, Request, Response, run
 
@@ -85,14 +87,15 @@ end
 
 Server(http::HttpHandler)                        = Server( http, nothing )
 Server(handler::Function)                        = Server( HttpHandler(handler) )
-Server(websock::WebsocketHandler)                = Server( HttpHandler( req -> Response(404) ), websock )
+Server(websock::WebsocketHandler)                = Server( HttpHandler( (req, res) -> Response(404) ), websock )
 Server(handler::Function, sockhandler::Function) = Server( HttpHandler(handler), WebsocketHandler(sockhandler) )
 
-immutable Client
+type Client
     id::Int
     sock::TcpSocket
+    parser::RequestParser.ClientParser
 
-    Client(id::Int,sock::TcpSocket) = new(id, sock)
+    Client(id::Int, sock::TcpSocket) = new(id, sock)
 end
 
 # Request / Response
@@ -127,17 +130,12 @@ end
 
 # Meat / Potatoes
 
-function parse_request( client::Client )
-    RequestParser.parse_http_request( takebuf_string( client.sock.buffer ) )
-end
-
 function render( response::Response )
     res = join(["HTTP/1.1", response.status, response.message, "\r\n"], " ")
     for header in keys(response.headers)
         res = string(join([ res, header, ": ", response.headers[header] ]), "\r\n")
     end
-    res = join([ res, "", response.data ], "\r\n")
-    res
+    join([ res, "", response.data ], "\r\n")
 end
 
 # Handle client requests
@@ -145,9 +143,22 @@ end
 function process_client( server::Server, client::Client, websockets_enabled::Bool )
     event( "connect", server, client )
     client.sock.readcb = function ( args... )                # When reading from the buffer
-        req = parse_request( client )                         # Get the data
-        println(req)
-        event( "read", server, client, req )
+        add_data(client.parser, takebuf_string(client.sock.buffer))
+        true
+    end
+    start_reading( client.sock )  # Start buffering request data ( when available )
+end
+
+# TODO: We're not closing hung connections.
+# We need to detect this somehow.
+#
+function close(client::Client)
+    close(client.sock)
+    clean!(client.parser)
+end
+
+function message_handler(server::Server, client::Client, websockets_enabled::Bool)
+    function on_message_complete(req::Request)
         if websockets_enabled && is_websocket_handshake( req )
             server.websock.handle( client )                  # Defer to websockets
             return true                                      # Keep-alive
@@ -158,19 +169,16 @@ function process_client( server::Server, client::Client, websockets_enabled::Boo
             if !isa(response, Response)                      # Promote return to Response
                 response = Response(response)
             end
-            # TODO: This is going to be hard to debug -- can we get the stack trace here?
         catch err
-            rethrow(err)
+            response = Response(500)
             event( "error", server, client, err )            # Something went wrong
-            response = Response(500)                         # Throw a 500 error
+            Base.display_error(err, catch_backtrace())       # Prints backtrace without throwing
         end
         event( "write", server, client, response )
         write( client.sock, render(response) )               # Send the response
         event( "close", server, client )
-        close( client.sock )                                 # Close this connection
-        false                                                # Return false to prevent an error at stream.jl:190
+        close( client )                                      # Close this connection
     end
-    start_reading( client.sock )  # Start buffering request data ( when available )
 end
 
 # Listen on $port, accept client connections
@@ -183,7 +191,8 @@ function run( server::Server, port::Integer )
     listen( sock )
     event( "listen", server, port )
     while true # handle requests, Base.wait_accept blocks until a connection is made
-        client = Client( idPool += 1, Base.wait_accept( sock ) )
+        client = Client( idPool += 1, Base.wait_accept(sock) )
+        client.parser = RequestParser.ClientParser( message_handler(server, client, websockets_enabled) )
         process_client( server, client, websockets_enabled )
     end
 end
