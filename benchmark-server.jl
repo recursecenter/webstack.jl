@@ -1,14 +1,14 @@
 using Http
 
 http = HttpHandler() do req::Request, res::Response
+    # creates a 1mb response
     mb = 1024*1024
-    
     x = memio(mb, true)
     for i=1:mb
         write(x, 'd')
     end
     seek(x, 0)
-    #Response( ismatch(r"^/hello/",req.resource) ? string("Hello ", split(req.resource,'/')[3], "!") : 404 ),
+
     Response( ismatch(r"^/", req.resource) ? readall(x) : 404)
 end
 
