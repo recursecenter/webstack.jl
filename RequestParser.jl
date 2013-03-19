@@ -24,7 +24,7 @@ PartialRequest() = PartialRequest("", "", Dict{String, String}(), "")
 # global dict. Partials must be manually deleted when connections
 # are closed or memory leaks will occur.
 partials = Dict{Ptr{Parser}, PartialRequest}()
-message_complete_callbacks = Dict{Ptr, Function}()
+message_complete_callbacks = Dict{Int, Function}()
 
 immutable Request
     method::String
@@ -79,8 +79,6 @@ function on_headers_complete(parser)
     r = partials[parser]
     p = unsafe_ref(parser)
     # get first two bits of p.type_and_flags
-    println("Type and flags: ", p.type_and_flags)
-    println("Errno and upgrade: ", p.errno_and_upgrade)
     ptype = p.type_and_flags & 0x03
     if ptype == 0
         r.method = http_method_str(convert(Int, p.method))
@@ -106,7 +104,7 @@ function on_message_complete(parser)
     delete!(r.headers, "current_header", nothing)
     req = Request(r)
 
-    message_complete_callbacks[unsafe_ref(parser).data](req)
+    message_complete_callbacks[unsafe_ref(parser).id](req)
 
     return 0
 end
@@ -119,7 +117,7 @@ immutable ClientParser
     function ClientParser(on_message_complete::Function)
         parser = Parser()
         http_parser_init(parser)
-        message_complete_callbacks[parser.data] = on_message_complete
+        message_complete_callbacks[parser.id] = on_message_complete
 
         settings = ParserSettings(on_message_begin_cb, on_url_cb,
                                   on_status_complete_cb, on_header_field_cb,
@@ -136,7 +134,7 @@ end
 
 function clean!(parser::ClientParser)
     delete!(partials, parser.parser, nothing)
-    delete!(message_complete_callbacks, parser.parser.data, nothing)
+    delete!(message_complete_callbacks, parser.parser.id, nothing)
 end
 
 end
