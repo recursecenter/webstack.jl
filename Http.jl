@@ -75,7 +75,7 @@ immutable HttpHandler
 end
 
 immutable WebsocketHandler
-    handle::Function            # ( sock ) -> ...
+    handle::Function            # ( request, sock ) -> ...
 end
 
 # Server / Client
@@ -122,7 +122,7 @@ headers() = (String => String)["Server" => "Julia/$VERSION"]
 
 # Utilities
 
-is_websocket_handshake( req ) = get( req.headers, "Upgrade", false ) == "websock"
+is_websocket_handshake( req ) = get( req.headers, "Upgrade", false ) == "websocket"
 
 function event( event::String, server::Server, args... )
     has( server.http.events, event ) ? server.http.events[event]( args... ) : false
@@ -160,7 +160,7 @@ end
 function message_handler(server::Server, client::Client, websockets_enabled::Bool)
     function on_message_complete(req::Request)
         if websockets_enabled && is_websocket_handshake( req )
-            server.websock.handle( client )                  # Defer to websockets
+            server.websock.handle( req, client )             # Defer to websockets
             return true                                      # Keep-alive
         end
         local response                                       # Init response
