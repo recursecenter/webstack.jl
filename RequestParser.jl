@@ -129,7 +129,7 @@ immutable ClientParser
 end
 
 function add_data(parser::ClientParser, request_data::String)
-    http_parser_execute( parser.parser, parser.settings, request_data )
+    http_parser_execute(parser.parser, parser.settings, request_data)
 end
 
 function clean!(parser::ClientParser)
@@ -137,4 +137,4 @@ function clean!(parser::ClientParser)
     delete!(message_complete_callbacks, parser.parser.id, nothing)
 end
 
-end
+end # module RequestParser
