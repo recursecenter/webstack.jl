@@ -20,7 +20,7 @@ route(app, GET, "/") do req, res
     # ...
 end
 
-route(app, [GET,POST], "/") do req, res
+route(app, GET | POST, "/") do req, res
     # ...
 end
 
