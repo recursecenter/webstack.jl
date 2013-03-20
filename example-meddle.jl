@@ -1,8 +1,7 @@
 using Http
 using Meddle
 
-stack = [DefaultHeaders(), CookieDecoder(), FileServer(pwd()), NotFound()]
-
+stack = middleware(DefaultHeaders, CookieDecoder, FileServer(pwd()), NotFound)
 http = HttpHandler((req, res) -> Meddle.handle(stack, req, res))
 
 for event in split("connect read write close error")
