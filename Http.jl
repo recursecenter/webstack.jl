@@ -1,7 +1,5 @@
 module Http
 
-import Base:close
-
 using RequestParser
 export Server, HttpHandler, WebsocketHandler, Request, Response, run
 
@@ -65,30 +63,31 @@ STATUS_CODES = {
 }
 
 # Request handlers
+# ================
 
 immutable HttpHandler
     handle::Function
     sock::TcpSocket
     events::Dict
 
-    HttpHandler(handle::Function) = new( handle, TcpSocket(), (ASCIIString=>Function)[] )
+    HttpHandler(handle::Function) = new(handle, TcpSocket(), (ASCIIString=>Function)[])
 end
 
 immutable WebsocketHandler
-    handle::Function            # ( sock ) -> ...
+    handle::Function # (request, sock) -> ...
 end
 
 # Server / Client
+# ===============
 
 immutable Server
     http::HttpHandler
     websock::Union(Nothing,WebsocketHandler)
 end
-
-Server(http::HttpHandler)                        = Server( http, nothing )
-Server(handler::Function)                        = Server( HttpHandler(handler) )
-Server(websock::WebsocketHandler)                = Server( HttpHandler( (req, res) -> Response(404) ), websock )
-Server(handler::Function, sockhandler::Function) = Server( HttpHandler(handler), WebsocketHandler(sockhandler) )
+Server(http::HttpHandler)                        = Server(http, nothing)
+Server(handler::Function)                        = Server(HttpHandler(handler))
+Server(websock::WebsocketHandler)                = Server(HttpHandler((req, res) -> Response(404)), websock)
+Server(handler::Function, sockhandler::Function) = Server(HttpHandler(handler), WebsocketHandler(sockhandler))
 
 type Client
     id::Int
@@ -99,6 +98,7 @@ type Client
 end
 
 # Request / Response
+# ==================
 
 type Response
     status::Int
@@ -107,7 +107,6 @@ type Response
     data::String
     finished::Bool
 end
-
 Response(s::Int, m::String, h::Headers, d::String) = Response(s, m, h, d, false)
 Response(s::Int, m::String, h::Headers)            = Response(s, m, h, "", false)
 Response(s::Int, m::String, d::String)             = Response(s, m, headers(), d, false)
@@ -120,81 +119,91 @@ Response()                                         = Response(200)
 # Default response headers
 headers() = (String => String)["Server" => "Julia/$VERSION"]
 
-# Utilities
+# Utility functions
+# =================
 
-is_websocket_handshake( req ) = get( req.headers, "Upgrade", false ) == "websock"
+is_websocket_handshake(req) = get(req.headers, "Upgrade", false) == "websocket"
 
-function event( event::String, server::Server, args... )
-    has( server.http.events, event ) ? server.http.events[event]( args... ) : false
+function event(event::String, server::Server, args...)
+    has(server.http.events, event) ? server.http.events[event](args...) : false
 end
 
-# Meat / Potatoes
+# Request -> Response functions
+# =============================
 
-function render( response::Response )
+# Turns Response into a HTTP response string to send to clients
+function render(response::Response)
     res = join(["HTTP/1.1", response.status, response.message, "\r\n"], " ")
+
     for header in keys(response.headers)
         res = string(join([ res, header, ": ", response.headers[header] ]), "\r\n")
     end
+
     join([ res, "", response.data ], "\r\n")
 end
 
 # Handle client requests
+function process_client(server::Server, client::Client, websockets_enabled::Bool)
+    event("connect", server, client)
 
-function process_client( server::Server, client::Client, websockets_enabled::Bool )
-    event( "connect", server, client )
-    client.sock.readcb = function ( args... )                # When reading from the buffer
+    client.sock.readcb = function (args...)                # When reading from the buffer
         add_data(client.parser, takebuf_string(client.sock.buffer))
         true
     end
-    start_reading( client.sock )  # Start buffering request data ( when available )
+
+    client.sock.closecb = function (args...)
+        clean!(client.parser)
+    end
+
+    start_reading(client.sock)  # Start buffering request data (when available)
 end
 
-# TODO: We're not closing hung connections.
-# We need to detect this somehow.
-#
-function close(client::Client)
-    close(client.sock)
-    clean!(client.parser)
-end
-
+# Callback factory for providing on_message_complete for each client parser
 function message_handler(server::Server, client::Client, websockets_enabled::Bool)
+
+    # After parsing is done, the HttpHandler & WebsockHandler are passed the Request
     function on_message_complete(req::Request)
-        if websockets_enabled && is_websocket_handshake( req )
-            server.websock.handle( client )                  # Defer to websockets
-            return true                                      # Keep-alive
-        end
-        local response                                       # Init response
-        try
-            response = server.http.handle( req, Response() ) # Run the server handler
-            if !isa(response, Response)                      # Promote return to Response
-                response = Response(response)
+        @async begin
+            if websockets_enabled && is_websocket_handshake(req)
+                server.websock.handle(req, client)             # Defer to websockets
+                return true                                    # Keep-alive
             end
-        catch err
-            response = Response(500)
-            event( "error", server, client, err )            # Something went wrong
-            Base.display_error(err, catch_backtrace())       # Prints backtrace without throwing
+
+            local response                                     # Init response
+
+            try
+                response = server.http.handle(req, Response()) # Run the server handler
+                if !isa(response, Response)                    # Promote return to Response
+                    response = Response(response)
+                end
+            catch err
+                response = Response(500)
+                event("error", server, client, err)            # Something went wrong
+                Base.display_error(err, catch_backtrace())     # Prints backtrace without throwing
+            end
+
+            event("write", server, client, response)
+            write(client.sock, render(response))               # Send the response
+            event("close", server, client)
+            close(client.sock)                                 # Close this connection
         end
-        event( "write", server, client, response )
-        write( client.sock, render(response) )               # Send the response
-        event( "close", server, client )
-        close( client )                                      # Close this connection
     end
 end
 
-# Listen on $port, accept client connections
-
-function run( server::Server, port::Integer )
-    id_pool = 0                                               # Increments for each connection
+# Start event loop, listen on port, accept client connections -- blocks forever
+function run(server::Server, port::Integer)
+    id_pool = 0                                            # Increments for each connection
     sock = server.http.sock
     websockets_enabled = server.websock != nothing
-    uv_error("listen", !bind(sock, Base.IPv4(uint32(0)), uint16(port)) )
-    listen( sock )
-    event( "listen", server, port )
+    uv_error("listen", !bind(sock, Base.IPv4(uint32(0)), uint16(port)))
+    listen(sock)
+    event("listen", server, port)
+
     while true # handle requests, Base.wait_accept blocks until a connection is made
-        client = Client( id_pool += 1, Base.wait_accept(sock) )
-        client.parser = RequestParser.ClientParser( message_handler(server, client, websockets_enabled) )
-        process_client( server, client, websockets_enabled )
+        client = Client(id_pool += 1, Base.wait_accept(sock))
+        client.parser = RequestParser.ClientParser(message_handler(server, client, websockets_enabled))
+        process_client(server, client, websockets_enabled)
     end
 end
 
-end
+end # module Http
