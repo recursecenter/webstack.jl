@@ -150,11 +150,11 @@ function process_client(server::Server, client::Client, websockets_enabled::Bool
         add_data(client.parser, takebuf_string(client.sock.buffer))
         true
     end
-    
+
     client.sock.closecb = function (args...)
         clean!(client.parser)
     end
-    
+
     start_reading(client.sock)  # Start buffering request data (when available)
 end
 
@@ -163,28 +163,30 @@ function message_handler(server::Server, client::Client, websockets_enabled::Boo
 
     # After parsing is done, the HttpHandler & WebsockHandler are passed the Request
     function on_message_complete(req::Request)
-        if websockets_enabled && is_websocket_handshake(req)
-            server.websock.handle(req, client)             # Defer to websockets
-            return true                                    # Keep-alive
-        end
-
-        local response                                     # Init response
-
-        try
-            response = server.http.handle(req, Response()) # Run the server handler
-            if !isa(response, Response)                    # Promote return to Response
-                response = Response(response)
+        @async begin
+            if websockets_enabled && is_websocket_handshake(req)
+                server.websock.handle(req, client)             # Defer to websockets
+                return true                                    # Keep-alive
             end
-        catch err
-            response = Response(500)
-            event("error", server, client, err)            # Something went wrong
-            Base.display_error(err, catch_backtrace())     # Prints backtrace without throwing
-        end
 
-        event("write", server, client, response)
-        write(client.sock, render(response))               # Send the response
-        event("close", server, client)
-        close(client.sock)                                 # Close this connection
+            local response                                     # Init response
+
+            try
+                response = server.http.handle(req, Response()) # Run the server handler
+                if !isa(response, Response)                    # Promote return to Response
+                    response = Response(response)
+                end
+            catch err
+                response = Response(500)
+                event("error", server, client, err)            # Something went wrong
+                Base.display_error(err, catch_backtrace())     # Prints backtrace without throwing
+            end
+
+            event("write", server, client, response)
+            write(client.sock, render(response))               # Send the response
+            event("close", server, client)
+            close(client.sock)                                 # Close this connection
+        end
     end
 end
 
