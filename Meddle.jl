@@ -3,7 +3,7 @@ module Meddle
 MEDDLE_VERSION = "0.0"
 
 using Http
-export Midware, DefaultHeaders, FileServer, CookieDecoder, NotFound, MidwareStack, handle, middleware
+export Midware, DefaultHeaders, FileServer, CookieDecoder, NotFound, MidwareStack, handle, middleware, respond
 
 immutable Midware
     handler::Function
@@ -55,7 +55,6 @@ end
 
 function handle(stack::MidwareStack, req::Request, res::Response)
     for mid in stack
-        println("Running: ", mid.handler, " with ", req.state)
         # TODO: check these and throw useful error for bad returns
         req, res = mid.handler(req, res)
         if res.finished
