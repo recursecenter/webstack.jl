@@ -106,7 +106,27 @@ on_body_cb = cfunction(on_body, HTTP_DATA_CB...)
 function on_message_complete(parser)
     r = partials[parser]
     delete!(r.headers, "current_header", nothing)
+
+    # Handle URL variables eg. `foo/bar?a=b&c=d`
+    m = match(r"\?.*=.*", r.resource)
+    url_params = (String => Union(String,Array))[]
+    if m != nothing
+        for set in split(split(r.resource, "?")[2], "&")
+            set = split(set, "=")
+            # Promote multiple instances of the same key to Array
+            if get(url_params, set[1], nothing) == nothing 
+                url_params[set[1]] = set[2]
+            elseif isa(url_params[set[1]], String)
+                url_params[set[1]] = [url_params[set[1]], set[2]]
+            else
+                push!(url_params[set[1]], set[2])
+            end
+        end
+    end
+    r.resource = split(r.resource,'?')[1]
+
     req = Request(r)
+    req.state[:url_params] = url_params
 
     message_complete_callbacks[unsafe_ref(parser).id](req)
 
