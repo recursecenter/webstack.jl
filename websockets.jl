@@ -12,6 +12,9 @@ end
 
 char2digit(c::Char) = '0' <= c <= '9' ? c-'0' : lowercase(c)-'a'+10
 
+hex2bytes(s::ASCIIString) =
+  [ uint8(char2digit(s[i])<<4 | char2digit(s[i+1])) for i=1:2:length(s) ]
+
 const base64chars = ['A':'Z','a':'z','0':'9','+','/']
 
 function base64(x::Uint8, y::Uint8, z::Uint8)
@@ -47,11 +50,10 @@ function base64(v::Array{Uint8})
 end
 
 generate_websocket_key(key) = begin
-  magicstring =  "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+  magicstring = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
   resp_key = readall(`echo -n $key$magicstring` | `openssl dgst -sha1`)
-  m = match(r"\w+\W+(.+)$",resp_key)
-  @show resp_key = m.captures[1]
-  bytes = [ uint8(char2digit(resp_key[2i-1])<<4 | char2digit(resp_key[2i])) for i=1:length(resp_key)>>1 ]
+  m = match(r"\w+\W+(.+)$", resp_key)
+  bytes = hex2bytes(m.captures[1])
   return base64(bytes)
 end
 
