@@ -46,10 +46,10 @@ import Base.read
 function read(ws::WebSocket)
   println("starting")
   @show a = read(ws.socket,Uint8)
-  @show fin = a & 1000_0000 >>> 7 #if fin, then is final fragment
-  @show rsv1 = a & 0100_0000 #if not 0, fail.
-  @show rsv2 = a & 0010_0000 #if not 0, fail.
-  @show rsv3 = a & 0001_0000 #if not 0, fail.
+  @show fin    = a & 1000_0000 >>> 7 #if fin, then is final fragment
+  @show rsv1   = a & 0100_0000 #if not 0, fail.
+  @show rsv2   = a & 0010_0000 #if not 0, fail.
+  @show rsv3   = a & 0001_0000 #if not 0, fail.
   @show opcode = a & 0000_1111 #if not known code, fail.
 
   @show b = read(ws.socket,Uint8)
@@ -64,12 +64,14 @@ function read(ws::WebSocket)
   end
 
   @show payload_len
+  @show maskkey = read(ws.socket,Uint32) #4 bytes
 
   #data is a bytestring?
-  data = ""
+  data = BitArray(payload_len) 
   for i in 1:payload_len
-    @show data = read(ws.socket, Uint8) #how to append to bytestring?
-    println("$(convert(Char,data))")
+    @show d = read(ws.socket, Uint8) #how to append to bytestring?
+    println("$(convert(Char,d))")
+    data[i] = d
   end
  
   return data
