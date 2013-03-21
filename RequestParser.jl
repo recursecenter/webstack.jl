@@ -109,18 +109,11 @@ function on_message_complete(parser)
 
     # Handle URL variables eg. `foo/bar?a=b&c=d`
     m = match(r"\?.*=.*", r.resource)
-    url_params = (String => Union(String,Array))[]
+    url_params = (String => String)[]
     if m != nothing
         for set in split(split(r.resource, "?")[2], "&")
-            set = split(set, "=")
-            # Promote multiple instances of the same key to Array
-            if get(url_params, set[1], nothing) == nothing 
-                url_params[set[1]] = set[2]
-            elseif isa(url_params[set[1]], String)
-                url_params[set[1]] = [url_params[set[1]], set[2]]
-            else
-                push!(url_params[set[1]], set[2])
-            end
+            key, val = split(set, "=")
+            url_params[key] = val
         end
     end
     r.resource = split(r.resource,'?')[1]
