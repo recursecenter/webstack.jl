@@ -1,7 +1,12 @@
 module Http
 
 using RequestParser
-export Server, HttpHandler, WebsocketHandler, Request, Response, run
+export Server, 
+       HttpHandler, 
+       WebsocketHandler, 
+       Request, 
+       Response, 
+       run
 
 STATUS_CODES = {
     100 => "Continue",
@@ -146,16 +151,14 @@ end
 function process_client(server::Server, client::Client, websockets_enabled::Bool)
     event("connect", server, client)
 
-    client.sock.readcb = function (args...)                # When reading from the buffer
-        add_data(client.parser, takebuf_string(client.sock.buffer))
-        true
-    end
-
     client.sock.closecb = function (args...)
         clean!(client.parser)
     end
 
-    start_reading(client.sock)  # Start buffering request data (when available)
+    while client.sock.open
+        line = readline(client.sock)
+        add_data(client.parser, line)
+    end
 end
 
 # Callback factory for providing on_message_complete for each client parser
@@ -202,7 +205,7 @@ function run(server::Server, port::Integer)
     while true # handle requests, Base.wait_accept blocks until a connection is made
         client = Client(id_pool += 1, Base.wait_accept(sock))
         client.parser = RequestParser.ClientParser(message_handler(server, client, websockets_enabled))
-        process_client(server, client, websockets_enabled)
+        @async process_client(server, client, websockets_enabled)
     end
 end
 

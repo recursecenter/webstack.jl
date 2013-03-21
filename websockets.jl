@@ -56,44 +56,48 @@ end
 
 char2digit(c::Char) = '0' <= c <= '9' ? c-'0' : lowercase(c)-'a'+10
 
-base64chars = ['A':'Z','a':'z','0':'9','+','/']
-function base64(a::Uint8,b::Uint8,c::Uint8)
-         n = int(a)<<16 | int(b)<<8 | int(c)
-         base64chars[(n & 0b11111100_00000000_00000000) >> 18 + 1],
-         base64chars[(n & 0b00000011_11110000_00000000) >> 12 + 1],
-         base64chars[(n & 0b00000000_00001111_11000000) >> 6  + 1],
-         base64chars[(n & 0b00000000_00000000_00111111)       + 1]
-       end
+hex2bytes(s::ASCIIString) =
+  [ uint8(char2digit(s[i])<<4 | char2digit(s[i+1])) for i=1:2:length(s) ]
 
-function base64(a::Uint8, b::Uint8)
-  x, y, z = base64(a, b, 0x0)
-  x, y, z, '='
+const base64chars = ['A':'Z','a':'z','0':'9','+','/']
+
+function base64(x::Uint8, y::Uint8, z::Uint8)
+  n = int(x)<<16 | int(y)<<8 | int(z)
+  base64chars[(n >> 18)            + 1],
+  base64chars[(n >> 12) & 0b111111 + 1],
+  base64chars[(n >>  6) & 0b111111 + 1],
+  base64chars[(n      ) & 0b111111 + 1]
 end
 
-function base64(a::Uint8)
-  x, y = base64(a, 0x0, 0x0)
-  x, y, '=', '='
+function base64(x::Uint8, y::Uint8)
+  a, b, c = base64(x, y, 0x0)
+  a, b, c, '='
 end
 
-function print_base64(io::IO, v::Array{Uint8})
-  for i = 1:3:length(v)-2
-    print(io, base64(v[i],v[i+1],v[i+2])...)
+function base64(x::Uint8)
+  a, b = base64(x, 0x0, 0x0)
+  a, b, '=', '='
+end
+
+function base64(v::Array{Uint8})
+  n = length(v)
+  w = Array(Uint8,4*iceil(n/3))
+  j = 0
+  for i = 1:3:n-2
+    w[j+=1], w[j+=1], w[j+=1], w[j+=1] = base64(v[i], v[i+1], v[i+2])
   end
-  tail = length(v) % 3
+  tail = n % 3
   if tail > 0
-    print(io, base64(v[end-tail+1:end]...)...)
+    w[j+=1], w[j+=1], w[j+=1], w[j+=1] = base64(v[end-tail+1:end]...)
   end
+  ASCIIString(w)
 end
-
-base64(v::Array{Uint8}) = sprint(io->print_base64(io,v))
 
 generate_websocket_key(key) = begin
-  magicstring =  "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+  magicstring = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
   resp_key = readall(`echo -n $key$magicstring` | `openssl dgst -sha1`)
-  m = match(r"\w+\W+(.+)$",resp_key)
-  @show resp_key = m.captures[1]
-  bytes = [ uint8(char2digit(resp_key[2i-1])<<4 | char2digit(resp_key[2i])) for i=1:length(resp_key)>>1 ]
-
+  m = match(r"\w+\W+(.+)$", resp_key)
+  bytes = hex2bytes(m.captures[1])
   return base64(bytes)
 end
 
@@ -113,4 +117,3 @@ websocket_handler(handler) = (request,client) -> begin
   websocket_handshake(request,client)
   handler(request,WebSocket(client.sock))
 end
- 
