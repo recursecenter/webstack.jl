@@ -45,35 +45,40 @@ end
 import Base.read
 function read(ws::WebSocket)
   println("starting")
-  @show a = read(ws.socket,Uint8)
-  @show fin    = a & 1000_0000 >>> 7 #if fin, then is final fragment
-  @show rsv1   = a & 0100_0000 #if not 0, fail.
-  @show rsv2   = a & 0010_0000 #if not 0, fail.
-  @show rsv3   = a & 0001_0000 #if not 0, fail.
-  @show opcode = a & 0000_1111 #if not known code, fail.
+  a = read(ws.socket,Uint8)
+  @show fin    = a & 0b1000_0000 >>> 7 #if fin, then is final fragment
+  @show rsv1   = a & 0b0100_0000 #if not 0, fail.
+  @show rsv2   = a & 0b0010_0000 #if not 0, fail.
+  @show rsv3   = a & 0b0001_0000 #if not 0, fail.
+  @show is_control_frame = a & 0b0000_1000 >>> 3 #if is 1, then is control frame
+  @show opcode = a & 0b0000_1111 #if not known code, fail.
 
-  @show b = read(ws.socket,Uint8)
-  @show mask = b & 1000_0000 >>> 7 #if not 1, fail.
-  @show payload_len = b & 0111_1111
+  b = read(ws.socket,Uint8)
+  @show mask = b & 0b1000_0000 >>> 7 #if not 1, fail.
+  @show payload_len::Uint64 = b & 0b0111_1111
 
   if payload_len == 126
-    @show payload_len = read(ws.socket,Uint16) #2 bytes
-  else if payload_len == 127
-    @show payload_len = read(ws.socket,Uint64) #8 bytes
-  end
+    @show payload_len = ntoh(read(ws.socket,Uint16)) #2 bytes
+  elseif payload_len == 127
+    @show payload_len = ntoh(read(ws.socket,Uint64)) #8 bytes
   end
 
   @show payload_len
-  @show maskkey = read(ws.socket,Uint32) #4 bytes
+  maskkey = Array(Uint8,4) # 4 bytes
 
-  #data is a bytestring?
-  data = BitArray(payload_len) 
+  for i in 1:4
+   @show maskkey[i] = read(ws.socket,Uint8)
+  end
+
+  data = Array(Uint8, payload_len)
   for i in 1:payload_len
-    @show d = read(ws.socket, Uint8) #how to append to bytestring?
-    println("$(convert(Char,d))")
+    d = read(ws.socket, Uint8)
+    d = d $ maskkey[mod(i - 1, 4) + 1]
+    print("$(convert(Char,d))")
     data[i] = d
   end
- 
+
+  println() 
   return data
 end
 
