@@ -166,7 +166,6 @@ function message_handler(server::Server, client::Client, websockets_enabled::Boo
 
     # After parsing is done, the HttpHandler & WebsockHandler are passed the Request
     function on_message_complete(req::Request)
-        @async begin
             if websockets_enabled && is_websocket_handshake(req)
                 server.websock.handle(req, client)             # Defer to websockets
                 return true                                    # Keep-alive
@@ -189,7 +188,6 @@ function message_handler(server::Server, client::Client, websockets_enabled::Boo
             write(client.sock, render(response))               # Send the response
             event("close", server, client)
             close(client.sock)                                 # Close this connection
-        end
     end
 end
 
