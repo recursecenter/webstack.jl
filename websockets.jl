@@ -28,10 +28,6 @@ end
 #     +---------------------------------------------------------------+
 #
 
-function write(ws::WebSocket,data)
-  println(data)
-end
-
 # Opcode values
 #      *  %x0 denotes a continuation frame
 #      *  %x1 denotes a text frame
@@ -41,6 +37,36 @@ end
 #      *  %x9 denotes a ping
 #      *  %xA denotes a pong
 #      *  %xB-F are reserved for further control frames
+
+function send_fragment(ws::WebSocket, islast::Bool, data)
+  l = length(data)
+  b1::Uint8 = (islast ? 0b1000_0001 : 0b0000_0001) #always send text
+
+  if l <= 125
+    write(ws.socket,b1)
+    write(ws.socket,uint8(l))
+    write(ws.socket,data)
+  elseif l <= typemax(Uint16)
+    write(ws.socket,b1)
+    write(ws.socket,uint8(126))
+    write(ws.socket,uint16(l))
+    write(ws.socket,data)
+  elseif l <= typemax(Uint64)
+    write(ws.socket,b1)
+    write(ws.socket,uint8(127))
+    write(ws.socket,uint64(l))
+    write(ws.socket,data)
+  else
+    error("Attempted to send too much data for one websocket fragment")
+  end
+end
+
+import Base.write
+function write(ws::WebSocket,data)
+  println("sending")
+  #assume data fits in one fragment
+  send_fragment(ws,true,data)
+end
 
 import Base.read
 function read(ws::WebSocket)
