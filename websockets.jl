@@ -2,8 +2,52 @@ using Http
 
 type WebSocket
   socket::TcpSocket
-  readcb::Function
 end
+
+#
+# Websocket Packets
+#
+
+#      0                   1                   2                   3
+#      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+#     +-+-+-+-+-------+-+-------------+-------------------------------+
+#     |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+#     |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+#     |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+#     | |1|2|3|       |K|             |                               |
+#     +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+#     |     Extended payload length continued, if payload len == 127  |
+#     + - - - - - - - - - - - - - - - +-------------------------------+
+#     |                               |Masking-key, if MASK set to 1  |
+#     +-------------------------------+-------------------------------+
+#     | Masking-key (continued)       |          Payload Data         |
+#     +-------------------------------- - - - - - - - - - - - - - - - +
+#     :                     Payload Data continued ...                :
+#     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+#     |                     Payload Data continued ...                |
+#     +---------------------------------------------------------------+
+#
+
+function write(ws::WebSocket,data)
+  println(data)
+end
+
+import Base.read
+function read(ws::WebSocket)
+  println("starting")
+  str = read(ws.socket,Uint8)
+  println("end")
+end
+
+function close(ws::WebSocket)
+  println("...send close frame")
+  println("...make sure we don't send anything else")
+  println("...wait for their close frame, then close the Tcpsocket")
+end
+
+#
+# Websocket Handshake
+#
 
 #parse http request for special key
 get_websocket_key(request::Request) = begin
@@ -62,10 +106,11 @@ websocket_handshake(request,client) = begin
   #TODO: use a proper HTTP response type
   response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "
   Base.write(client.sock,"$response$resp_key\r\n\r\n")
+  @show Base.read(client.sock,Uint8)
 end
 
 websocket_handler(handler) = (request,client) -> begin
   websocket_handshake(request,client)
-  handler(request,client)
+  handler(request,WebSocket(client.sock))
 end
  
