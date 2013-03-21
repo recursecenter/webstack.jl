@@ -2,7 +2,8 @@ require("websockets.jl")
 
 wsh = websocket_handler((req,client) -> begin
 	while true
-		read(client)
+		msg = read(client)
+		write(client, msg)
 	end
 end)
 wshh = WebsocketHandler(wsh)
