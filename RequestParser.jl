@@ -1,7 +1,11 @@
 module RequestParser
 
 using HttpParser
-export RequestParser, Request, Headers, clean!, add_data
+export RequestParser, 
+       Request, 
+       Headers, 
+       clean!, 
+       add_data
 
 HTTP_CB      = (Int, (Ptr{Parser},))
 HTTP_DATA_CB = (Int, (Ptr{Parser}, Ptr{Cchar}, Csize_t,))
