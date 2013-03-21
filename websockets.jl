@@ -32,11 +32,47 @@ function write(ws::WebSocket,data)
   println(data)
 end
 
+# Opcode values
+#      *  %x0 denotes a continuation frame
+#      *  %x1 denotes a text frame
+#      *  %x2 denotes a binary frame
+#      *  %x3-7 are reserved for further non-control frames
+#      *  %x8 denotes a connection close
+#      *  %x9 denotes a ping
+#      *  %xA denotes a pong
+#      *  %xB-F are reserved for further control frames
+
 import Base.read
 function read(ws::WebSocket)
   println("starting")
-  str = read(ws.socket,Uint8)
-  println("end")
+  @show a = read(ws.socket,Uint8)
+  @show fin = a & 1000_0000 >>> 7 #if fin, then is final fragment
+  @show rsv1 = a & 0100_0000 #if not 0, fail.
+  @show rsv2 = a & 0010_0000 #if not 0, fail.
+  @show rsv3 = a & 0001_0000 #if not 0, fail.
+  @show opcode = a & 0000_1111 #if not known code, fail.
+
+  @show b = read(ws.socket,Uint8)
+  @show mask = b & 1000_0000 >>> 7 #if not 1, fail.
+  @show payload_len = b & 0111_1111
+
+  if payload_len == 126
+    @show payload_len = read(ws.socket,Uint16) #2 bytes
+  else if payload_len == 127
+    @show payload_len = read(ws.socket,Uint64) #8 bytes
+  end
+  end
+
+  @show payload_len
+
+  #data is a bytestring?
+  data = ""
+  for i in 1:payload_len
+    @show data = read(ws.socket, Uint8) #how to append to bytestring?
+    println("$(convert(Char,data))")
+  end
+ 
+  return data
 end
 
 function close(ws::WebSocket)
@@ -110,7 +146,6 @@ websocket_handshake(request,client) = begin
   #TODO: use a proper HTTP response type
   response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "
   Base.write(client.sock,"$response$resp_key\r\n\r\n")
-  @show Base.read(client.sock,Uint8)
 end
 
 websocket_handler(handler) = (request,client) -> begin
