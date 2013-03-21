@@ -60,8 +60,8 @@ websocket_handshake(request,client) = begin
   resp_key = generate_websocket_key(key)
   
   #TODO: use a proper HTTP response type
-  response = "HTTP/1.1 101 Switching Protocols\nUpgrade: websocket\nConnection: Upgrade\nSec-WebSocket-Accept: "
-  Base.write(client.sock,"$response$resp_key\n\n")
+  response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "
+  Base.write(client.sock,"$response$resp_key\r\n\r\n")
 end
 
 websocket_handler(handler) = (request,client) -> begin
