@@ -3,7 +3,15 @@ module Meddle
 MEDDLE_VERSION = "0.0"
 
 using Http
-export Midware, DefaultHeaders, FileServer, CookieDecoder, NotFound, MidwareStack, handle, middleware, respond
+export Midware, 
+       DefaultHeaders, 
+       FileServer, 
+       CookieDecoder, 
+       NotFound, 
+       MidwareStack, 
+       handle, 
+       middleware, 
+       respond
 
 immutable Midware
     handler::Function

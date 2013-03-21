@@ -2,7 +2,8 @@
 module FooBar
 
 using Lib
-export do_bar
+export Foo,
+       do_bar
 
 # Section
 # =======

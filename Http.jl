@@ -1,7 +1,12 @@
 module Http
 
 using RequestParser
-export Server, HttpHandler, WebsocketHandler, Request, Response, run
+export Server, 
+       HttpHandler, 
+       WebsocketHandler, 
+       Request, 
+       Response, 
+       run
 
 STATUS_CODES = {
     100 => "Continue",
