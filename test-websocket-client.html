@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+	<title>Websockets client</title>
+	<style>
+		.sent {
+			color: blue;
+		}
+		.received {
+			color: green;
+		}
+	</style>
+</head>
+<body>
+<div id="content">
+
+</div>
+<script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+<script type="text/javascript">
+	var connection = new WebSocket('ws://127.0.0.1:8080');
+	connection.onmessage = function( message ){
+		$("#content").append( $("<p class='received'></p>").html( message.data ) );
+	}
+	function send( message ){	
+		connection.send(message);
+		$("#content").append( $("<p class='sent'></p>").html( message ) );
+	}
+</script>
+</body>
+</html>
