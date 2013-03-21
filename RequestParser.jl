@@ -116,10 +116,12 @@ function on_message_complete(parser)
             url_params[key] = val
         end
     end
+    raw_resource = r.resource
     r.resource = split(r.resource,'?')[1]
 
     req = Request(r)
-    req.state[:url_params] = url_params
+    req.state[:raw_resource] = raw_resource
+    req.state[:url_params]   = url_params
 
     message_complete_callbacks[unsafe_ref(parser).id](req)
 
