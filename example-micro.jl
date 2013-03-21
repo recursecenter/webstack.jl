@@ -11,4 +11,9 @@ get(app, "/foo/bar") do req, res
     "totally"
 end
 
+get(app, "/show/urlparams") do req, res
+	params = url_params(req)
+	repr(params)
+end
+
 start(app, 8000)
