@@ -3,6 +3,10 @@ using Micro
 app = Micro.app()
 
 # Route with HTTP verbs
+route(app, GET, "/") do req, res
+	"This is the root"
+end
+
 route(app, GET | POST, "/admin/new") do req, res
     "Hello admin"
 end
