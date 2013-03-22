@@ -1,6 +1,7 @@
 using Http
 
 type WebSocket
+  id::Int32
   socket::TcpSocket
 end
 
@@ -183,5 +184,5 @@ end
 
 websocket_handler(handler) = (request,client) -> begin
   websocket_handshake(request,client)
-  handler(request,WebSocket(client.sock))
+  handler(request,WebSocket(client.id,client.sock))
 end
