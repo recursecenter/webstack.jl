@@ -1,5 +1,3 @@
-module RequestParser
-
 using HttpParser
 export RequestParser, 
        Request, 
@@ -155,5 +153,3 @@ function clean!(parser::ClientParser)
     delete!(partials, parser.parser, nothing)
     delete!(message_complete_callbacks, parser.parser.id, nothing)
 end
-
-end # module RequestParser

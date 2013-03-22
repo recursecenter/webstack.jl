@@ -1,6 +1,6 @@
 module Http
 
-using RequestParser
+include("RequestParser.jl")
 export Server, 
        HttpHandler, 
        WebsocketHandler, 
@@ -97,7 +97,7 @@ Server(handler::Function, sockhandler::Function) = Server(HttpHandler(handler), 
 type Client
     id::Int
     sock::TcpSocket
-    parser::RequestParser.ClientParser
+    parser::ClientParser
 
     Client(id::Int, sock::TcpSocket) = new(id, sock)
 end
@@ -202,7 +202,7 @@ function run(server::Server, port::Integer)
 
     while true # handle requests, Base.wait_accept blocks until a connection is made
         client = Client(id_pool += 1, Base.wait_accept(sock))
-        client.parser = RequestParser.ClientParser(message_handler(server, client, websockets_enabled))
+        client.parser = ClientParser(message_handler(server, client, websockets_enabled))
         @async process_client(server, client, websockets_enabled)
     end
 end
