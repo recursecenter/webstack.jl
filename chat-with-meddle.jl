@@ -7,7 +7,7 @@ require("websockets.jl")
 ##
 
 #global Dict to store open connections in
-@show global connections = {0 => WebSocket(0,TcpSocket())}
+global connections = {0 => WebSocket(0,TcpSocket())}
 
 wsh = websocket_handler((req,client) -> begin
   global connections

@@ -69,32 +69,61 @@ function write(ws::WebSocket,data)
   send_fragment(ws,true,data)
 end
 
+type WebSocketFragment
+  is_last::Bool
+  rsv1::Bool
+  rsv2::Bool
+  rsv3::Bool
+  opcode::Uint8 #really, Uint4
+  is_masked::Bool
+  payload_len::Uint64
+  maskkey::Array{Uint8,4} #Union{Array{Uint8,4}, Nothing}
+  data::Array{Uint8} #ByteString
+end
+
+function WebSocketFragment(fin,rsv1,rsv2,rsv3,opcode,masked,payload_len,maskkey,data)
+  return WebSocketFragment( bool(fin)
+    , bool(rsv1)
+    , bool(rsv2)
+    , bool(rsv3)
+    , opcode
+    , bool(masked)
+    , payload_len
+    , maskkey
+    , data) 
+end
+
+function is_control_frame(msg::WebSocketFragment)
+  return bool((msg.opcode & 0b0000_1000) >>> 3)
+  # if that bit is set (1), then this is a control frame.
+end
+
+function handle_control_frame(ws::WebSocket,wsf::WebSocketFragment)
+  #just drop it on the floor.
+end
+
 import Base.read
 function read(ws::WebSocket)
-  println("starting")
   a = read(ws.socket,Uint8)
-  @show fin    = a & 0b1000_0000 >>> 7 #if fin, then is final fragment
-  @show rsv1   = a & 0b0100_0000 #if not 0, fail.
-  @show rsv2   = a & 0b0010_0000 #if not 0, fail.
-  @show rsv3   = a & 0b0001_0000 #if not 0, fail.
-  @show is_control_frame = a & 0b0000_1000 >>> 3 #if is 1, then is control frame
-  @show opcode = a & 0b0000_1111 #if not known code, fail.
+  fin    = a & 0b1000_0000 >>> 7 #if fin, then is final fragment
+  rsv1   = a & 0b0100_0000 #if not 0, fail.
+  rsv2   = a & 0b0010_0000 #if not 0, fail.
+  rsv3   = a & 0b0001_0000 #if not 0, fail.
+  opcode = a & 0b0000_1111 #if not known code, fail.
 
   b = read(ws.socket,Uint8)
-  @show mask = b & 0b1000_0000 >>> 7 #if not 1, fail.
-  @show payload_len::Uint64 = b & 0b0111_1111
+  mask = b & 0b1000_0000 >>> 7 #if not 1, fail.
 
+  payload_len::Uint64 = b & 0b0111_1111
   if payload_len == 126
-    @show payload_len = ntoh(read(ws.socket,Uint16)) #2 bytes
+    payload_len = ntoh(read(ws.socket,Uint16)) #2 bytes
   elseif payload_len == 127
-    @show payload_len = ntoh(read(ws.socket,Uint64)) #8 bytes
+    payload_len = ntoh(read(ws.socket,Uint64)) #8 bytes
   end
 
-  @show payload_len
-  maskkey = Array(Uint8,4) # 4 bytes
-
+  maskkey = Array(Uint8,4)
   for i in 1:4
-   @show maskkey[i] = read(ws.socket,Uint8)
+   maskkey[i] = read(ws.socket,Uint8)
   end
 
   data = Array(Uint8, payload_len)
@@ -105,7 +134,13 @@ function read(ws::WebSocket)
     data[i] = d
   end
 
-  println() 
+  #handle control (non-data) messages
+  #@show wsf = WebSocketFragment(fin,rsv1,rsv2,rsv3,opcode,mask,payload_len,maskkey,data)
+  #if is_control_frame(wsf)
+  #  @show handle_control_frame(ws,wsf)
+  #  #return read(ws)
+  #end
+
   return data
 end
 
