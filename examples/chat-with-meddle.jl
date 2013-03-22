@@ -1,6 +1,6 @@
 using Http
 using Meddle
-require("websockets.jl")
+using Websockets
 
 ##
 ## Websockets stuff (port 8080)
