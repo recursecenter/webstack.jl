@@ -1,7 +1,14 @@
+module Websockets
+
 using Http
+export WebSocket,
+       write,
+       read,
+       close,
+       websocket_handler
 
 type WebSocket
-  id::Int32
+  id::Int
   socket::TcpSocket
 end
 
@@ -221,3 +228,5 @@ websocket_handler(handler) = (request,client) -> begin
   websocket_handshake(request,client)
   handler(request,WebSocket(client.id,client.sock))
 end
+
+end # module Websockets

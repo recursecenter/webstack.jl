@@ -1,4 +1,5 @@
-require("websockets.jl")
+using Http
+using Websockets
 
 wsh = websocket_handler((req,client) -> begin
 	while true
