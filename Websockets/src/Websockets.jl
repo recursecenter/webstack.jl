@@ -5,7 +5,7 @@ export WebSocket,
        write,
        read,
        close,
-       websocket_handler
+       WebsocketHandler
 
 type WebSocket
   id::Int
@@ -224,9 +224,9 @@ websocket_handshake(request,client) = begin
   Base.write(client.sock,"$response$resp_key\r\n\r\n")
 end
 
-websocket_handler(handler) = (request,client) -> begin
+WebsocketHandler(handler) = WebsocketClientHandler((request,client) -> begin
   websocket_handshake(request,client)
   handler(request,WebSocket(client.id,client.sock))
-end
+end)
 
 end # module Websockets
