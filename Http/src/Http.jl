@@ -1,5 +1,6 @@
 module Http
 
+using Websockets
 include("RequestParser.jl")
 export Server, 
        HttpHandler, 
@@ -167,7 +168,9 @@ function message_handler(server::Server, client::Client, websockets_enabled::Boo
     # After parsing is done, the HttpHandler & WebsockHandler are passed the Request
     function on_message_complete(req::Request)
             if websockets_enabled && is_websocket_handshake(req)
-                server.websock.handle(req, client)             # Defer to websockets
+                websocket_handshake(req,client)
+                ws = WebSocket(client.id,client.sock)
+                server.websock.handle(req, ws)                 # Defer to websockets
                 return true                                    # Keep-alive
             end
 
