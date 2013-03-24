@@ -1,4 +1,5 @@
-require("websockets.jl")
+using Http
+using Websockets
 
 #global Dict to store open connections in
 @show global connections = {0 => WebSocket(0,TcpSocket())}
@@ -17,5 +18,11 @@ wsh = websocket_handler((req,client) -> begin
 end)
 
 wshh = WebsocketHandler(wsh)
-server = Server(wshh)
+
+onepage = readall("./examples/chat-client.html")
+httph = HttpHandler() do req::Request, res::Response
+  Response(onepage)
+end
+
+server = Server(httph,wshh)
 run(server,8080)
