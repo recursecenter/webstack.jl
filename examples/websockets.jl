@@ -1,12 +1,12 @@
 using Http
 using Websockets
 
-wsh = websocket_handler((req,client) -> begin
+wsh = WebsocketHandler() do req, client
 	while true
 		msg = read(client)
 		write(client, msg)
 	end
-end)
-wshh = WebsocketHandler(wsh)
-server = Server(wshh)
+end
+
+server = Server(wsh)
 run(server,8080)

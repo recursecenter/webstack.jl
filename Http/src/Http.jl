@@ -3,7 +3,7 @@ module Http
 include("RequestParser.jl")
 export Server, 
        HttpHandler, 
-       WebsocketHandler, 
+       WebsocketClientHandler, 
        Request, 
        Response, 
        run
@@ -78,7 +78,7 @@ immutable HttpHandler
     HttpHandler(handle::Function) = new(handle, TcpSocket(), (ASCIIString=>Function)[])
 end
 
-immutable WebsocketHandler
+immutable WebsocketClientHandler
     handle::Function # (request, sock) -> ...
 end
 
@@ -87,12 +87,12 @@ end
 
 immutable Server
     http::HttpHandler
-    websock::Union(Nothing,WebsocketHandler)
+    websock::Union(Nothing,WebsocketClientHandler)
 end
 Server(http::HttpHandler)                        = Server(http, nothing)
 Server(handler::Function)                        = Server(HttpHandler(handler))
-Server(websock::WebsocketHandler)                = Server(HttpHandler((req, res) -> Response(404)), websock)
-Server(handler::Function, sockhandler::Function) = Server(HttpHandler(handler), WebsocketHandler(sockhandler))
+Server(websock::WebsocketClientHandler)                = Server(HttpHandler((req, res) -> Response(404)), websock)
+Server(handler::Function, sockhandler::Function) = Server(HttpHandler(handler), WebsocketClientHandler(sockhandler))
 
 type Client
     id::Int
