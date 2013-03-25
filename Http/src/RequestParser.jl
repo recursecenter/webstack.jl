@@ -1,5 +1,3 @@
-module RequestParser
-
 using HttpParser
 export RequestParser, 
        Request, 
@@ -106,7 +104,22 @@ on_body_cb = cfunction(on_body, HTTP_DATA_CB...)
 function on_message_complete(parser)
     r = partials[parser]
     delete!(r.headers, "current_header", nothing)
+
+    # Handle URL variables eg. `foo/bar?a=b&c=d`
+    m = match(r"\?.*=.*", r.resource)
+    url_params = (String => String)[]
+    if m != nothing
+        for set in split(split(r.resource, "?")[2], "&")
+            key, val = split(set, "=")
+            url_params[key] = val
+        end
+    end
+    raw_resource = r.resource
+    r.resource = split(r.resource,'?')[1]
+
     req = Request(r)
+    req.state[:raw_resource] = raw_resource
+    req.state[:url_params]   = url_params
 
     message_complete_callbacks[unsafe_ref(parser).id](req)
 
@@ -140,5 +153,3 @@ function clean!(parser::ClientParser)
     delete!(partials, parser.parser, nothing)
     delete!(message_complete_callbacks, parser.parser.id, nothing)
 end
-
-end # module RequestParser
