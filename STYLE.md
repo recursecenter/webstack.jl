@@ -5,9 +5,7 @@ using Lib
 export Foo,
        do_bar
 
-# Section
-# =======
-
+# Foo is a type, it has fields and multiple constructors
 type Foo
     name::String
     label::String
@@ -17,7 +15,13 @@ end
 Foo(n::String, l::String) = Foo(n, l, "")
 Foo(n::String)            = Foo(n, "")
 
-# Description for do_bar
+# `do_bar` does some stuff
+#
+# It accepts some arguments and this is a really good
+# multiline explanation of those arguments.
+#
+#       do_bar(Foo()) # => something
+#
 function do_bar(f::Foo)
     bar = string(f.label, f.body)   # inline comments
 
@@ -31,5 +35,4 @@ function do_bar(f::Foo)
 end
 
 end # module FooBar
-
 ```
