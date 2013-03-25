@@ -3,6 +3,7 @@ WIP: Implementing the webstack in Julia.
 ## Dependencies
 
 * Julia, since it's that's what it's all written in.
+* HttpParser.jl, see [HttpParser/README.md](https://github.com/hackerschool/webstack.jl/tree/master/HttpParser). This julia module requires a C shared library.
 
 ##Simple HTTP hello world:
 
