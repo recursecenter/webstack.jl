@@ -2,6 +2,9 @@
 # This module provides a human-friendly API to making HTTP requests.
 module Requests
 
+# The public API
+export request, GET, POST
+
 # Represent HTTP methods as Int.
 const GET = 1
 const POST = 2
