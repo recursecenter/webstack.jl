@@ -33,7 +33,8 @@ add_header(h::Headers, key::String, value::String) = h[key] = value
 repr(r::Request) = string("$(r.method) / HTTP/1.1\r\n", "Host: $(r.resource)\r\n", repr(r.headers), "\r\n") 
 
 # Make a connection on a socket and write some bytes to that socket.
-# This function instantiates a Request and merges passed in data with the default headers.
+# This function instantiates a Request and merges passed in data with the
+# default headers.  
 # It returns the entirety of the response the request got.
 #
 #     request("http://httpbin.org")
