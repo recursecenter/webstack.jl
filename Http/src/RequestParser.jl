@@ -1,14 +1,10 @@
 using HttpParser
-export RequestParser, 
-       Request, 
-       Headers, 
-       clean!, 
+export RequestParser,
+       clean!,
        add_data
 
 HTTP_CB      = (Int, (Ptr{Parser},))
 HTTP_DATA_CB = (Int, (Ptr{Parser}, Ptr{Cchar}, Csize_t,))
-
-typealias Headers Dict{String,String}
 
 type PartialRequest
     method::Any
@@ -17,6 +13,9 @@ type PartialRequest
     data::String
 end
 PartialRequest() = PartialRequest("", "", Dict{String, String}(), "")
+
+import Httplib.Request
+Request(r::PartialRequest) = Request(r.method, r.resource, r.headers, r.data, Dict())
 
 # IMPORTANT!!! This requires manual memory management.
 #
@@ -28,17 +27,8 @@ PartialRequest() = PartialRequest("", "", Dict{String, String}(), "")
 partials = Dict{Ptr{Parser}, PartialRequest}()
 message_complete_callbacks = Dict{Int, Function}()
 
-immutable Request
-    method::String
-    resource::String
-    headers::Headers
-    data::String
-    state::Dict
-end
-Request(r::PartialRequest) = Request(r.method, r.resource, r.headers, r.data, Dict())
-
 function on_message_begin(parser)
-    r = partials[parser] = PartialRequest()
+    partials[parser] = PartialRequest()
     return 0
 end
 on_message_begin_cb = cfunction(on_message_begin, HTTP_CB...)
@@ -121,6 +111,7 @@ function on_message_complete(parser)
     req.state[:raw_resource] = raw_resource
     req.state[:url_params]   = url_params
 
+    # TODO: WTF is happening here?
     message_complete_callbacks[unsafe_ref(parser).id](req)
 
     return 0

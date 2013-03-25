@@ -17,7 +17,7 @@
 </div>
 <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
 <script type="text/javascript">
-	var connection = new WebSocket('ws://127.0.0.1:8080');
+	var connection = new WebSocket('ws://127.0.0.1:8000');
 	connection.onmessage = function( message ){
 		$("#content").append( $("<p class='received'></p>").html( message.data ) );
 	}
