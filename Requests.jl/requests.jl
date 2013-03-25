@@ -1,4 +1,4 @@
-# A requests module that was inspirted by Python's Requests library.
+# A requests module that was inspired by Python's Requests library.
 # This module provides a human-friendly API to making HTTP requests.
 module Requests
 
