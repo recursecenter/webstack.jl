@@ -91,14 +91,18 @@ end
 # If no such file exists, then it passes to the next in the stack.
 # If a file is found, it short-circuts and responds.
 #
-# WARNING!!! This is currently unsafe! Allows requests to escape the `root` dir
-# It _will_ serve your entire filesystem to requests with `..`
-#
+
+path_in_dir(p::String, d::String) = length(p) > length(d) && p[1:length(d)] == d
+
 function FileServer(root::String)
     Midware() do req::Request, res::Response
         m = match(r"^/+(.*)$", req.resource)
         if m != nothing
             path = normpath(root, m.captures[1])
+            # protect against dir-escaping
+            if !path_in_dir(path, root)
+                return respond(req, Response(400)) # Bad Request
+            end
             if isfile(path)
                 res.data = readall(path)
                 return respond(req, res)
