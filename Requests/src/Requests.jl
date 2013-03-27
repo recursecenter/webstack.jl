@@ -24,7 +24,7 @@ repr(r::Request) = string("$(r.method) / HTTP/1.1\r\n", "Host: $(r.resource)\r\n
 #
 function request{T <: String}(method::HttpMethodBitmask, uri::T, data::Dict{T, T})
     client = connect(TcpSocket(), uri, 80)[1]
-    req = Request(HttpMethodBitmaskToName(method), uri, default_headers(), "", Dict{T, T}())
+    req = Request(HttpMethodBitmaskToName[method], uri, default_headers(), "", Dict{T, T}())
     merge!(req.headers, data)
     write(client, repr(req))
     readall(client)
