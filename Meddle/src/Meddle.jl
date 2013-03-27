@@ -91,12 +91,18 @@ end
 # If no such file exists, then it passes to the next in the stack.
 # If a file is found, it short-circuts and responds.
 #
+
+is_escaping_path(p::String) = ismatch(r"/\.+/","/$p")
+
 function FileServer(root::String)
     Midware() do req::Request, res::Response
         m = match(r"^/+(.*)$", req.resource)
         if m != nothing
             # protect against dir-escaping "/../" commands
-            path = normpath(root, replace(m.captures[1],r"/?\.+/",""))
+            if is_escaping_path(m.captures[1])
+                return respond(req, Response(400)) # Bad Request
+            end
+            path = normpath(root, m.captures[1])
             if isfile(path)
                 res.data = readall(path)
                 return respond(req, res)
