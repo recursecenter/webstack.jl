@@ -92,17 +92,17 @@ end
 # If a file is found, it short-circuts and responds.
 #
 
-is_escaping_path(p::String) = ismatch(r"/\.+/","/$p")
+path_in_dir(p::String, d::String) = length(p) > length(d) && p[1:length(d)] == d
 
 function FileServer(root::String)
     Midware() do req::Request, res::Response
         m = match(r"^/+(.*)$", req.resource)
         if m != nothing
-            # protect against dir-escaping "/../" commands
-            if is_escaping_path(m.captures[1])
+            path = normpath(root, m.captures[1])
+            # protect against dir-escaping
+            if !path_in_dir(path, root)
                 return respond(req, Response(400)) # Bad Request
             end
-            path = normpath(root, m.captures[1])
             if isfile(path)
                 res.data = readall(path)
                 return respond(req, res)
