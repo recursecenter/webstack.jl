@@ -4,6 +4,7 @@ WIP: Implementing the webstack in Julia.
 
 * Julia, since it's that's what it's all written in.
 * HttpParser.jl, see [HttpParser/README.md](https://github.com/hackerschool/webstack.jl/tree/master/HttpParser). This julia module requires a C shared library.
+* Calendar.jl, installable via `Pkg.add("Calendar")` in the Julia REPL.  Repo [here](https://github.com/nolta/Calendar.jl).
 
 ##Simple HTTP hello world:
 
