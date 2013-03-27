@@ -7,7 +7,6 @@ using Httplib
 export GET,
        request
 
-typealias Headers Dict{String, String}
 # Represent Headers the way a server would expect them (\r\n) and end with \r\n\r\n
 repr(h::Headers) = string(join(["$k: $v" for (k, v) in h], "\r\n"), "\r\n")
 add_header{T <: String}(h::Headers, key::T, value::T) = h[key] = value
