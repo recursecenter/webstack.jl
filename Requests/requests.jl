@@ -3,18 +3,9 @@ module Requests
 
 using Httplib
 
-# Use integers for HTTP methods
-const GET = 1
-const POST = 2
-const PUT = 3
-const DELETE = 4
-
-# Integers to Strings for HTTP Methods
-_method_dict = Dict{Int,String}()
-_method_dict[1] = "GET"
-_method_dict[2] = "POST"
-_method_dict[3] = "PUT"
-_method_dict[4] = "DELETE"
+# Export the working bits
+export GET,
+       request
 
 typealias Headers Dict{String, String}
 # Represent Headers the way a server would expect them (\r\n) and end with \r\n\r\n
