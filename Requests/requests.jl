@@ -23,15 +23,15 @@ repr(r::Request) = string("$(r.method) / HTTP/1.1\r\n", "Host: $(r.resource)\r\n
 #     # FIXME
 #     request(POST, "http://httpbin.org/post", ["data" => "some data"])
 #
-request{T <: String}(uri::T)                   = request(GET, uri, Dict{T, T}())
-request{T <: String}(uri::T, data::Dict{T, T}) = request(GET, uri, data)
-function request{T <: String}(method::Int, uri::T, data::Dict{T, T})
+function request{T <: String}(method::HttpMethodBitmask, uri::T, data::Dict{T, T})
     client = connect(TcpSocket(), uri, 80)[1]
-    req = Request(_method_dict[method], uri, default_headers(), "", Dict{T, T}())
+    req = Request(HttpMethodBitmaskToName(method), uri, default_headers(), "", Dict{T, T}())
     merge!(req.headers, data)
     write(client, repr(req))
     readall(client)
 end
+request{T <: String}(uri::T, data::Dict{T, T}) = request(GET, uri, data)
+request{T <: String}(uri::T)                   = request(GET, uri, Dict{T, T}())
 
 default_user_agent() = "julia-requests/0.1 julia/$VERSION"
 # Set the default headers for a request
