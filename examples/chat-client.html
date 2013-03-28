@@ -3,28 +3,89 @@
 <head>
 	<title>Websockets client</title>
 	<style>
+		html, body {
+			width: 100%;
+			height: 100%;
+			padding: 0;
+			margin: 0;
+			font-family: Arial, Helvetica, Sans-Serif;
+		}
 		.sent {
 			color: blue;
+			background: #eee;
+			padding: 5px;
 		}
 		.received {
 			color: green;
+			padding: 5px;
+		}
+		#content, #welcome {
+			padding: 0 20px;
+		}
+		#sayer span {
+			color: #fff;
+			padding: 0 10px;
+		}
+		#sayer input[name=say] {
+			width: 400px;
 		}
 	</style>
 </head>
 <body>
-<div id="content">
+<div id="chat" style="display:none;">
+	<div id="content">
 
+	</div>
+	<div id="sayer" style="position:fixed;bottom:0;height:20px;background:#333;width:100%;">
+		<span></span><input name="say" type="text" value="" /><input type="submit" value="say" />
+	</div>
+</div>
+<div id="welcome">
+	<h1>Select a username</h1>
+	<form id="pick_username">
+		<input class="username" name="username" type="text" value="" />
+		<input type="submit" value="Enter Chat" />
+	</form>
 </div>
 <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
 <script type="text/javascript">
-	var connection = new WebSocket('ws://127.0.0.1:8000');
-	connection.onmessage = function( message ){
-		$("#content").append( $("<p class='received'></p>").html( message.data ) );
-	}
-	function send( message ){	
-		connection.send(message);
-		$("#content").append( $("<p class='sent'></p>").html( message ) );
-	}
+	$(function(){
+		var connection = new WebSocket('ws://'+window.location.host);
+		var you = "you";
+		$("#content").height( $(window).height() - 50 );
+		connection.onmessage = function( message ){
+			$("#content").append( $("<p class='received'></p>").html( message.data ) );
+		}
+		function changeUsername( username ){
+			you = username;
+			connection.send('setusername:'+ username);
+			$("#sayer span").html( username );
+		}
+		function sendMessage( message ){
+			connection.send('say:'+ message);
+			$("#content").append( $("<p class='sent'></p>").html( you + ": " + message ) );
+		}
+		$("#sayer input[type=submit]").click(function(){
+			if( $("#sayer input[name=say]").val().replace(/\s/gi,'').length )
+				sendMessage( $("#sayer input[name=say]").val() );
+			$("#sayer input[name=say]").val("").focus();
+		});
+		$("#sayer input[name=say]").keypress(function(e){
+			if( e.which === 13 ) $("#sayer input[type=submit]").click();
+		});
+		$("#pick_username").submit(function(e){
+			var uname = $(this).find("input.username").val().replace(/[^0-9a-zA-Z_-\s]/gi,'');
+			if( !uname.replace(/\s/gi,'').length ) alert("Please select a valid username");
+			else {
+				changeUsername( uname );
+				$("#welcome").hide();
+				$("#chat").show();
+			}
+			e.stopImmediatePropagation();
+			e.preventDefault();
+			return false
+		});
+	});
 </script>
 </body>
 </html>
