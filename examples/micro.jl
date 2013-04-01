@@ -28,16 +28,12 @@ get(app, "/datatype/<test::Int>") do req, res
 	"Int: $(route_params(req, :test))"
 end
 
+get(app, "/datatype/<test::Float>") do req, res
+	"Float: $(route_params(req, :test))"
+end
+
 get(app, "/named/<test>") do req, res
 	"Named: $(route_params(req, :test))"
-end
-
-global boner = function( args... )
-	"Suck it."
-end
-
-get(app, "/converter/<test::boner>") do req, res
-	"Converter: $(route_params(req, :test))"
 end
 
 start(app, 8000)
