@@ -9,6 +9,7 @@
 			padding: 0;
 			margin: 0;
 			font-family: Arial, Helvetica, Sans-Serif;
+			overflow: hidden;
 		}
 		.sent {
 			color: blue;
@@ -21,6 +22,7 @@
 		}
 		#content, #welcome {
 			padding: 0 20px;
+			overflow-y: scroll;
 		}
 		#sayer span {
 			color: #fff;
@@ -52,9 +54,8 @@
 	$(function(){
 		var connection = new WebSocket('ws://'+window.location.host);
 		var you = "you";
-		$("#content").height( $(window).height() - 50 );
 		connection.onmessage = function( message ){
-			$("#content").append( $("<p class='received'></p>").html( message.data ) );
+			$("#content").prepend( $("<p class='received'></p>").html( message.data ) );
 		}
 		function changeUsername( username ){
 			you = username;
@@ -63,7 +64,7 @@
 		}
 		function sendMessage( message ){
 			connection.send('say:'+ message);
-			$("#content").append( $("<p class='sent'></p>").html( you + ": " + message ) );
+			$("#content").prepend( $("<p class='sent'></p>").html( you + ": " + message ) );
 		}
 		$("#sayer input[type=submit]").click(function(){
 			if( $("#sayer input[name=say]").val().replace(/\s/gi,'').length )
