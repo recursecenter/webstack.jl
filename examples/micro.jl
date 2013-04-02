@@ -20,4 +20,20 @@ get(app, "/show/urlparams") do req, res
 	repr(params)
 end
 
+get(app, "/regex/<test::%[0-9][0-9]-[a-z]*>") do req, res
+	"Now you have 2 problems! test: $(route_params(req, :test))"
+end
+
+get(app, "/datatype/<test::Int>") do req, res
+	"Int: $(route_params(req, :test))"
+end
+
+get(app, "/datatype/<test::Float>") do req, res
+	"Float: $(route_params(req, :test))"
+end
+
+get(app, "/named/<test>") do req, res
+	"Named: $(route_params(req, :test))"
+end
+
 start(app, 8000)
