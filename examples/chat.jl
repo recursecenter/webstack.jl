@@ -2,7 +2,7 @@ using Http
 using Websockets
 
 #global Dict to store open connections in
-@show global connections = {0 => Websocket(0,TcpSocket())}
+global connections = Dict{Int,Websocket}()
 
 wsh = WebsocketHandler() do req, client
     global connections
