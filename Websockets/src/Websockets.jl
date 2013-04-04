@@ -16,6 +16,11 @@ include("Base64.jl") #used for encoding handshake key
 type Websocket
   id::Int
   socket::TcpSocket
+  is_closed::Bool
+
+  function Websocket(id::Int,socket::TcpSocket)
+    new(id,socket, !socket.open)
+  end
 end
 
 #
@@ -75,7 +80,7 @@ function send_fragment(ws::Websocket, islast::Bool, data)
     write(ws.socket,uint64(l))
     write(ws.socket,data)
   else
-    error("Attempted to send too much data for one websocket fragment")
+    error("Attempted to send too much data for one websocket fragment\n")
   end
 end
 
@@ -84,12 +89,17 @@ end
 # all protocol details are taken care of.
 import Base.write
 function write(ws::Websocket,data)
+  if ws.is_closed
+    @show ws
+    error("attempt to write to closed Websocket\n")
+  end
+
   println("sending")
   #assume data fits in one fragment
   send_fragment(ws,true,data)
 end
 
-# represents on received message fragment
+# represents one received message fragment
 # (headers + data)
 type WebsocketFragment
   is_last::Bool
@@ -99,13 +109,24 @@ type WebsocketFragment
   opcode::Uint8 #really, Uint4
   is_masked::Bool
   payload_len::Uint64
-  maskkey::Array{Uint8,4} #Union{Array{Uint8,4}, Nothing}
-  data::Array{Uint8} #ByteString
+  maskkey::Vector{Uint8} #Union{Array{Uint8,4}, Nothing}
+  data::Vector{Uint8} #ByteString
 end
 
 # constructor to do some conversions from bits to Bool.
-function WebsocketFragment(fin,rsv1,rsv2,rsv3,opcode,masked,payload_len,maskkey,data)
-  return WebsocketFragment( bool(fin)
+function WebsocketFragment(
+   fin::Uint8
+  ,rsv1::Uint8
+  ,rsv2::Uint8
+  ,rsv3::Uint8
+  ,opcode::Uint8
+  ,masked::Uint8
+  ,payload_len::Uint64
+  ,maskkey::Vector{Uint8}
+  ,data::Vector{Uint8})
+
+  WebsocketFragment(
+      bool(fin)
     , bool(rsv1)
     , bool(rsv2)
     , bool(rsv3)
@@ -125,22 +146,34 @@ function is_control_frame(msg::WebsocketFragment)
   # if that bit is set (1), then this is a control frame.
 end
 
-#TODO: handle close, ping, pong control messages.
 function handle_control_frame(ws::Websocket,wsf::WebsocketFragment)
-  #just drop it on the floor.
+
+  println("handling control frame")
+  @show wsf
+
+  if wsf.opcode == 0x8 #  %x8 denotes a connection close
+    println("closed!")
+    #TODO: send close frame
+    #TODO: close socket
+  elseif wsf.opcode == 0x9 #  %x9 denotes a ping
+    println("ping")
+    #TODO: send pong
+  elseif wsf.opcode == 0xA #  %xA denotes a pong
+    println("pong")
+    # nothing to do here...?
+  else #  %xB-F are reserved for further control frames
+    println("unknown opcode $(wsf.opcode)")
+  end
 end
 
-import Base.read
-# Read data from a Websocket.
-# This will block until a full message has been received.
-# The headers will be stripped and only the data will be returned.
-function read(ws::Websocket)
+function read_frame(ws::Websocket)
   a = read(ws.socket,Uint8)
   fin    = a & 0b1000_0000 >>> 7 #if fin, then is final fragment
   rsv1   = a & 0b0100_0000 #if not 0, fail.
   rsv2   = a & 0b0010_0000 #if not 0, fail.
   rsv3   = a & 0b0001_0000 #if not 0, fail.
   opcode = a & 0b0000_1111 #if not known code, fail.
+  #TODO: add validation somewhere to ensure rsv,opcode,mask,etc are valid.
 
   b = read(ws.socket,Uint8)
   mask = b & 0b1000_0000 >>> 7 #if not 1, fail.
@@ -164,15 +197,35 @@ function read(ws::Websocket)
     print("$(convert(Char,d))")
     data[i] = d
   end
+  println("")
+
+  return WebsocketFragment(fin,rsv1,rsv2,rsv3,opcode,mask,payload_len,maskkey,data)
+end
+
+import Base.read
+# Read data from a Websocket.
+# This will block until a full message has been received.
+# The headers will be stripped and only the data will be returned.
+function read(ws::Websocket)
+  if ws.is_closed
+    error("Attempt to read from closed Websocket")
+  end
+
+  frame = read_frame(ws)
 
   #handle control (non-data) messages
-  #@show wsf = WebsocketFragment(fin,rsv1,rsv2,rsv3,opcode,mask,payload_len,maskkey,data)
-  #if is_control_frame(wsf)
-  #  @show handle_control_frame(ws,wsf)
-  #  #return read(ws)
-  #end
+  if is_control_frame(frame)
+    @show handle_control_frame(ws,frame)
+    return read(ws)
+  end
 
-  return data
+  #handle data that uses multiple fragments
+  if !frame.is_last
+    print("\n\thandling fragmented message\n")
+    return concatenate(frame.data,read(ws))
+  end
+
+  return frame.data
 end
 
 # TODO: send a close frame
@@ -198,8 +251,8 @@ end
 # and that we *really* know what websockets means.
 generate_websocket_key(key) = begin
   magicstring = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-  @show resp_key = readall(`echo -n $key$magicstring` | `openssl dgst -sha1`)
-  @show m = match(r"(?:\([^)]*\)=\s)?(.+)$", resp_key)
+  resp_key = readall(`echo -n $key$magicstring` | `openssl dgst -sha1`)
+  m = match(r"(?:\([^)]*\)=\s)?(.+)$", resp_key)
   bytes = hex2bytes(m.captures[1])
   return base64(bytes)
 end
