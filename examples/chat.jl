@@ -6,39 +6,41 @@ global connections = Dict{Int,Websocket}()
 global usernames   = Dict{Int,String}()
 
 function decodeMessage( msg )
-    str = ""
-    for d in msg
-        str = string( str, convert(Char, d) )
-    end
-    str
+
+    # str = ""
+    # for d in msg
+    #     str = string( str, convert(Char, d) )
+    # end
+    # str
+    bytestring(msg)
 end
 
 wsh = WebsocketHandler() do req, client
     global connections
     @show connections[client.id] = client
-    @show usernames[client.id] = string(client.id)
     while true
         msg = read(client)
         msg = decodeMessage(msg)
-        if( length(msg) > 12 && msg[1:12] == "setusername:" )
+        if beginswith(msg, "setusername:")
             println("SETTING USERNAME: $msg")
-            usernames[client.id] = msg[13:length(msg)]
+            usernames[client.id] = msg[13:]
         end
-        if( length(msg) > 4 && msg[1:4] == "say:")
+        if beginswith(msg, "say:")
             println("EMITTING MESSAGE: $msg")
             for (k,v) in connections
                 if k != client.id
-                    write(v, usernames[client.id] * ": " * msg[5:length(msg)])
+                    write(v, (usernames[client.id] * ": " * msg[5:]))
                 end
             end
         end
     end
 end
 
+onepage = readall("./examples/chat-client.html")
 httph = HttpHandler() do req::Request, res::Response
-  onepage = readall("./examples/chat-client.html")
   Response(onepage)
 end
 
 server = Server(httph, wsh)
+println("Chat server listening on 8000...")
 run(server,8000)
