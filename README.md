@@ -7,7 +7,7 @@ The webstack has been split out into individual modules.  Please see:
   - [HttpServer](https://github.com/hackerschool/HttpServer.jl)
   - [Websockets](https://github.com/hackerschool/Websockets.jl)
   - [Meddle](https://github.com/hackerschool/Meddle.jl)
-  - [Micro](https://github.com/hackerschool/Micro.jl)
+  - ~~Micro~~ [Morsel](https://github.com/hackerschool/Morsel.jl)
 
 [Never graduate][HS].
 
