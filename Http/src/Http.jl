@@ -4,7 +4,7 @@
 #
 module Http
 
-using Httplib
+using Webstacklib, Httplib
 include("RequestParser.jl")
 export HttpHandler,
        Server,
@@ -92,18 +92,16 @@ end
 # sockets` is populated. Concrete types of `WebsocketInterface` are required 
 # to define these methods.
 #
-abstract WebsocketInterface
-# `is_websocket_handshake` should determine if `req` is a valid websocket 
-# upgrade request.
-#
-function is_websocket_handshake(handler::WebsocketInterface, req::Request)
-    throw("`$(typeof(handler))` does not implement `is_websocket_handshake`.")
-end
-# `handle` is called when `is_websocket_handshake` returns true, and takes
-# full control of the connection.
-#
-function handle(handler::WebsocketInterface, req::Request, client::Client)
-    throw("`$(typeof(handler))` does not implement `handle`.")
+@interface type WebsocketInterface
+    # `is_websocket_handshake` should determine if `req` is a valid websocket 
+    # upgrade request.
+    #
+    is_websocket_handshake(handler::WebsocketInterface, req::Request)
+
+    # `handle` is called when `is_websocket_handshake` returns true, and takes
+    # full control of the connection.
+    #
+    handle(handler::WebsocketInterface, req::Request, client::Client)
 end
 
 # `Server` types encapsulate an `HttpHandler` and optional 
